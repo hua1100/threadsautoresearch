@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 # Channel name -> YouTube channel ID mapping
 # RSS feed: https://www.youtube.com/feeds/videos.xml?channel_id=UC...
 CHANNEL_IDS = {
-    "every.to": "",  # TODO: 手動查 https://www.youtube.com/@everyinc 的 channel ID
-    "Lenny's Podcast": "",  # TODO: 手動查 https://www.youtube.com/@LennysPodcast 的 channel ID
+    "every.to": "UCjIMtrzxYc0lblGhmOgC_CA",
+    "Lenny's Podcast": "UC6t1O76G0jYXOAoYCm153dA",
     "How I AI": "UCRYY7IEbkHLH_ScJCu9eWDQ",
     "a16z": "UC9cn0TuPq4dnbTY-CBsm8XA",
     "Greg Isenberg": "UCPjNBjflYl0-HQtUvOx0Ibw",
