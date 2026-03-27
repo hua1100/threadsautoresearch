@@ -16,14 +16,27 @@ def merge_metrics(browser: dict, api: dict) -> dict:
     return merged
 
 
+HARVEST_MIN = 15   # always harvest at least this many posts
+HARVEST_MAX = 30   # cap to avoid slow browser scraping
+
+
 def harvest() -> list[dict]:
-    posts = read_json(DATA_DIR / "posts.json")
-    if not posts:
+    all_posts = read_json(DATA_DIR / "posts.json")
+    if not all_posts:
         return []
 
-    post_ids = [p["media_id"] for p in posts if p.get("media_id")]
+    # Take the most recent posts, between HARVEST_MIN and HARVEST_MAX
+    n = max(HARVEST_MIN, min(HARVEST_MAX, len(all_posts)))
+    posts = all_posts[-n:]
 
-    browser_data = harvest_browser(post_ids)
+    post_ids = [p["media_id"] for p in posts if p.get("media_id")]
+    permalinks = {
+        p["media_id"]: p["permalink"]
+        for p in posts
+        if p.get("media_id") and p.get("permalink")
+    }
+
+    browser_data = harvest_browser(post_ids, permalinks=permalinks)
     api_data = harvest_api(post_ids)
 
     results = []
