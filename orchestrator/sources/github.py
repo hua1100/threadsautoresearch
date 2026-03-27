@@ -34,6 +34,8 @@ def fetch_recent_activity(repo_path: str, days: int = 1) -> list[dict]:
 def list_local_repos(base_path: str = "/Users/hua") -> list[str]:
     repos = []
     base = Path(base_path)
+    if not base.exists():
+        return []
     for candidate in base.iterdir():
         if candidate.is_dir() and (candidate / ".git").exists():
             repos.append(str(candidate))
