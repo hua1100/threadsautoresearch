@@ -1,10 +1,11 @@
 name: AutoResearch Threads Loop
 
 on:
-  schedule:
-    - cron: '0 0 * * *'   # UTC 00:00 = 台灣 08:00
-    - cron: '0 12 * * *'  # UTC 12:00 = 台灣 20:00
-  workflow_dispatch:       # Manual trigger for testing
+  # schedule disabled — using Claude Code Scheduled Trigger instead
+  # schedule:
+  #   - cron: '0 0 * * *'   # UTC 00:00 = 台灣 08:00
+  #   - cron: '0 12 * * *'  # UTC 12:00 = 台灣 20:00
+  workflow_dispatch:       # Manual trigger only (backup)
 
 jobs:
   run-loop:
