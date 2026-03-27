@@ -12,7 +12,7 @@ def test_full_loop_first_run():
     mock_ai_response.content = [MagicMock(text='[{"text": "Test post", "dimensions": {"content_type": "工具分享", "hook_style": "送資源型", "format": "短句", "tone": "輕鬆口語", "cta": "無CTA", "source": "test"}, "hypothesis": "first test"}]')]
 
     with patch("orchestrator.main.get_follower_count", return_value=44), \
-         patch("orchestrator.sources.youtube.requests.get") as mock_yt, \
+         patch("orchestrator.main.fetch_all_channels", return_value=[]), \
          patch("orchestrator.harvest.harvest_browser", return_value={}), \
          patch("orchestrator.harvest.harvest_api", return_value={}), \
          patch("orchestrator.threads_client.post_text", return_value="media_1") as mock_post_text, \
@@ -22,12 +22,6 @@ def test_full_loop_first_run():
          patch("orchestrator.deploy.write_json") as mock_write_json, \
          patch("orchestrator.deploy.read_json", return_value=[]), \
          patch("orchestrator.harvest.read_json", return_value=[]):
-
-        # YouTube returns no videos
-        mock_yt_resp = MagicMock()
-        mock_yt_resp.status_code = 200
-        mock_yt_resp.json.return_value = {"items": []}
-        mock_yt.return_value = mock_yt_resp
 
         # Telegram getUpdates returns no messages
         mock_tg_get_resp = MagicMock()

@@ -8,7 +8,6 @@ def test_config_loads_required_vars(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot123")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat456")
-    monkeypatch.setenv("YOUTUBE_API_KEY", "yt-key")
 
     import importlib
     import orchestrator.config as cfg
@@ -19,7 +18,6 @@ def test_config_loads_required_vars(monkeypatch):
     assert cfg.ANTHROPIC_API_KEY == "sk-test"
     assert cfg.TELEGRAM_BOT_TOKEN == "bot123"
     assert cfg.TELEGRAM_CHAT_ID == "chat456"
-    assert cfg.YOUTUBE_API_KEY == "yt-key"
 
 
 def test_config_defaults():

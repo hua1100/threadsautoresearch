@@ -1,55 +1,88 @@
+import xml.etree.ElementTree as ET
 import requests
 from datetime import datetime, timedelta, timezone
-from orchestrator.config import YOUTUBE_API_KEY
 
+# Channel name -> YouTube channel ID mapping
+# RSS feed: https://www.youtube.com/feeds/videos.xml?channel_id=UC...
 CHANNEL_IDS = {
-    "every.to": "",
-    "Lenny's Podcast": "",
-    "How I AI": "",
-    "a16z": "",
-    "Greg Isenberg": "",
-    "Stephen G. Pope": "",
-    "Y Combinator": "",
-    "Nick Saraev": "",
+    "every.to": "",  # TODO: 手動查 https://www.youtube.com/@everyinc 的 channel ID
+    "Lenny's Podcast": "",  # TODO: 手動查 https://www.youtube.com/@LennysPodcast 的 channel ID
+    "How I AI": "UCRYY7IEbkHLH_ScJCu9eWDQ",
+    "a16z": "UC9cn0TuPq4dnbTY-CBsm8XA",
+    "Greg Isenberg": "UCPjNBjflYl0-HQtUvOx0Ibw",
+    "Stephen G. Pope": "UCIg2taLnC9X6LRP1k3kukOA",
+    "Y Combinator": "UCcefcZRL2oaA_uBNeo5UOWg",
+    "Nick Saraev": "UCbo-KbSjJDG6JWQ_MTZ_rNA",
 }
 
-YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+RSS_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015", "media": "http://search.yahoo.com/mrss/"}
 
 
 def fetch_recent_videos(channel_id: str, hours: int = 12) -> list[dict]:
     if not channel_id:
         return []
 
-    published_after = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    url = RSS_URL.format(channel_id=channel_id)
 
-    params = {
-        "part": "snippet",
-        "channelId": channel_id,
-        "type": "video",
-        "order": "date",
-        "publishedAfter": published_after,
-        "maxResults": 5,
-        "key": YOUTUBE_API_KEY,
-    }
-
-    resp = requests.get(YOUTUBE_SEARCH_URL, params=params)
-    if resp.status_code != 200:
-        print(f"[SOURCE] YouTube API error: {resp.status_code}")
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.status_code != 200:
+            print(f"[SOURCE] YouTube RSS error for {channel_id}: {resp.status_code}")
+            return []
+    except Exception as e:
+        print(f"[SOURCE] YouTube RSS fetch error: {e}")
         return []
 
-    items = resp.json().get("items", [])
-    return [
-        {
-            "video_id": item["id"]["videoId"],
-            "title": item["snippet"]["title"],
-            "channel": item["snippet"]["channelTitle"],
-            "published_at": item["snippet"]["publishedAt"],
-            "description": item["snippet"].get("description", ""),
-            "url": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
-        }
-        for item in items
-        if item.get("id", {}).get("videoId")
-    ]
+    try:
+        root = ET.fromstring(resp.text)
+    except ET.ParseError as e:
+        print(f"[SOURCE] YouTube RSS parse error: {e}")
+        return []
+
+    channel_name = ""
+    title_el = root.find("atom:title", NS)
+    if title_el is not None:
+        channel_name = title_el.text or ""
+
+    videos = []
+    for entry in root.findall("atom:entry", NS):
+        published_el = entry.find("atom:published", NS)
+        if published_el is None:
+            continue
+
+        published_str = published_el.text or ""
+        try:
+            published = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+
+        if published < cutoff:
+            continue
+
+        video_id_el = entry.find("yt:videoId", NS)
+        title_el = entry.find("atom:title", NS)
+        media_group = entry.find("media:group", NS)
+        description = ""
+        if media_group is not None:
+            desc_el = media_group.find("media:description", NS)
+            if desc_el is not None:
+                description = desc_el.text or ""
+
+        video_id = video_id_el.text if video_id_el is not None else ""
+        title = title_el.text if title_el is not None else ""
+
+        videos.append({
+            "video_id": video_id,
+            "title": title,
+            "channel": channel_name,
+            "published_at": published_str,
+            "description": description,
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+        })
+
+    return videos
 
 
 def fetch_all_channels(hours: int = 12) -> list[dict]:
