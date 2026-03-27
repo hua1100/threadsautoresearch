@@ -26,8 +26,11 @@ def fetch_recent_videos(channel_id: str, hours: int = 12) -> list[dict]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     url = RSS_URL.format(channel_id=channel_id)
 
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    }
     try:
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, timeout=15, headers=headers)
         if resp.status_code != 200:
             print(f"[SOURCE] YouTube RSS error for {channel_id}: {resp.status_code}")
             return []

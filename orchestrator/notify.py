@@ -66,7 +66,7 @@ def fetch_incoming_messages() -> list[str]:
             continue
 
         text = msg.get("text", "")
-        if text:
+        if text and not text.startswith("/"):
             messages.append(text)
 
     if max_update_id > offset:
