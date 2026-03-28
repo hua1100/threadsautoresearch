@@ -15,6 +15,10 @@ def _append_learnings(learnings: str, round_number: int) -> None:
     resource_path = PROMPTS_DIR / "resource.md"
     resource_path.parent.mkdir(parents=True, exist_ok=True)
     current = resource_path.read_text(encoding="utf-8") if resource_path.exists() else ""
+    # Skip if this round was already appended (prevents duplicates)
+    marker = f"### Round {round_number} ("
+    if marker in current:
+        return
     from datetime import datetime, timezone
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     new_section = f"\n\n### Round {round_number} ({date_str})\n{learnings}\n"

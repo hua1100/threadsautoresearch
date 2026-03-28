@@ -81,9 +81,8 @@ def analyze(posts: list[dict]) -> dict:
     )
     ai_text = response.content[0].text
 
-    learnings = ""
-    if "learning" in ai_text.lower() or "學習" in ai_text or "規則" in ai_text:
-        learnings = ai_text
+    # The full analysis is the learnings — no keyword gating needed
+    learnings = ai_text
 
     result = {
         "scored_posts": scored,
