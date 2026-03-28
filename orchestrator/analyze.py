@@ -105,7 +105,48 @@ def analyze(posts: list[dict]) -> dict:
     })
     write_json(DATA_DIR / "experiments.json", experiments)
 
+    _update_swipe_file(scored)
+
     return result
+
+
+SWIPE_MIN_LIKES = 2  # minimum likes to qualify for swipe file
+
+
+def _update_swipe_file(scored: list[dict]) -> None:
+    """Auto-add top performer to swipe_file.md if it has real engagement."""
+    if not scored:
+        return
+
+    top = scored[0]
+    text = top.get("text", "").strip()
+    likes = top.get("likes", 0)
+
+    if not text or likes < SWIPE_MIN_LIKES:
+        return
+
+    swipe_path = PROMPTS_DIR / "swipe_file.md"
+    current = swipe_path.read_text(encoding="utf-8") if swipe_path.exists() else ""
+
+    # Skip if this post is already in the swipe file
+    if text[:60] in current:
+        return
+
+    content_type = top.get("dimensions", {}).get("content_type", "未分類")
+    views = top.get("views", 0)
+    replies = top.get("replies", 0)
+    score = top.get("score", 0)
+    from datetime import datetime, timezone
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    entry = (
+        f"\n\n## 自動收錄（{date_str}）— {content_type}\n"
+        f"表現：score={score} views={views} likes={likes} replies={replies}\n\n"
+        f"「{text}」\n"
+    )
+
+    swipe_path.write_text(current + entry, encoding="utf-8")
+    print(f"[ANALYZE] Top performer added to swipe_file.md (likes={likes}, score={score})")
 
 
 def _now_iso() -> str:
