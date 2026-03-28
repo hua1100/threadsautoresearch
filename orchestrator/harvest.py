@@ -16,8 +16,8 @@ def merge_metrics(browser: dict, api: dict) -> dict:
     return merged
 
 
-HARVEST_MIN = 15   # always harvest at least this many posts
-HARVEST_MAX = 30   # cap to avoid slow browser scraping
+HARVEST_MIN = 30   # always harvest at least this many posts
+HARVEST_MAX = 50   # cap to avoid slow browser scraping
 
 
 def harvest() -> list[dict]:
