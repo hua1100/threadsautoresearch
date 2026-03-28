@@ -12,6 +12,7 @@ def merge_metrics(browser: dict, api: dict) -> dict:
         "likes": max(browser.get("likes", 0), api.get("likes", 0)),
         "replies": max(browser.get("replies", 0), api.get("replies", 0)),
         "reposts": max(browser.get("reposts", 0), api.get("reposts", 0)),
+        "quotes": max(browser.get("quotes", 0), api.get("quotes", 0)),
     }
     return merged
 

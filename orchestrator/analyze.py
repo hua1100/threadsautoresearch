@@ -49,7 +49,8 @@ def analyze(posts: list[dict]) -> dict:
     post_summary = "\n".join(
         f"- [{p.get('dimensions', {}).get('content_type', '?')}] "
         f"score={p['score']} views={p.get('views',0)} likes={p.get('likes',0)} "
-        f"replies={p.get('replies',0)} | hook={p.get('dimensions', {}).get('hook_style', '?')} "
+        f"replies={p.get('replies',0)} quotes={p.get('quotes',0)} "
+        f"| hook={p.get('dimensions', {}).get('hook_style', '?')} "
         f"| text: {p.get('text', '')[:100]}"
         for p in scored
     )
@@ -96,7 +97,8 @@ def analyze(posts: list[dict]) -> dict:
         "harvested_at": _now_iso(),
         "results": [
             {"media_id": p["media_id"], "score": p["score"], "views": p.get("views", 0),
-             "likes": p.get("likes", 0), "replies": p.get("replies", 0)}
+             "likes": p.get("likes", 0), "replies": p.get("replies", 0),
+             "quotes": p.get("quotes", 0)}
             for p in scored
         ],
         "analysis": ai_text,
