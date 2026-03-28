@@ -47,6 +47,37 @@ def get_user_profile() -> dict:
     return resp.json()
 
 
+def get_post_permalink(media_id: str) -> str | None:
+    url = f"{BASE_URL}/{media_id}"
+    params = {
+        "fields": "permalink",
+        "access_token": THREADS_ACCESS_TOKEN,
+    }
+    resp = requests.get(url, params=params)
+    if resp.status_code != 200:
+        return None
+    return resp.json().get("permalink")
+
+
+def get_user_insights() -> dict:
+    """Fetch user-level insights (followers_count, etc.)."""
+    url = f"{BASE_URL}/{THREADS_USER_ID}/threads_insights"
+    params = {
+        "metric": "followers_count",
+        "access_token": THREADS_ACCESS_TOKEN,
+    }
+    resp = requests.get(url, params=params)
+    if resp.status_code != 200:
+        return {}
+    data = resp.json().get("data", [])
+    result = {}
+    for item in data:
+        total = item.get("total_value", {})
+        if "value" in total:
+            result[item["name"]] = total["value"]
+    return result
+
+
 def get_post_insights(media_id: str) -> dict:
     url = f"{BASE_URL}/{media_id}/insights"
     params = {

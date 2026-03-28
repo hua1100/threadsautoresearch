@@ -6,7 +6,7 @@ from orchestrator.analyze import analyze
 from orchestrator.generate import generate
 from orchestrator.deploy import deploy
 from orchestrator.notify import send_notification
-from orchestrator.threads_client import get_user_profile
+from orchestrator.threads_client import get_user_insights
 from orchestrator.sources.youtube import fetch_all_channels
 from orchestrator.sources.github import list_local_repos, fetch_recent_activity
 from orchestrator.sources.x_curated import fetch_x_content, read_curated_file
@@ -21,8 +21,8 @@ def detect_phase(follower_count: int) -> int:
 
 def get_follower_count() -> int:
     try:
-        profile = get_user_profile()
-        return profile.get("follower_count", 0)
+        insights = get_user_insights()
+        return insights.get("followers_count", 0)
     except Exception:
         return 0
 
