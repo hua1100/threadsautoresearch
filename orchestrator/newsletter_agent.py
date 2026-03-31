@@ -2,9 +2,9 @@
 import json
 import subprocess
 import anthropic
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from orchestrator.config import (
-    ANTHROPIC_API_KEY, DATA_DIR, PROMPTS_DIR, DRAFTS_DIR, NEWSLETTER_EMAIL
+    ANTHROPIC_API_KEY, PROMPTS_DIR, DRAFTS_DIR, NEWSLETTER_EMAIL
 )
 from orchestrator.utils import load_recent_experiments
 
@@ -19,10 +19,6 @@ def run() -> None:
     swipe_path = PROMPTS_DIR / "swipe_file.md"
     if swipe_path.exists():
         swipe = swipe_path.read_text(encoding="utf-8")
-
-    if not NEWSLETTER_EMAIL:
-        print("[NEWSLETTER] NEWSLETTER_EMAIL not set, skipping")
-        return
 
     experiments = load_recent_experiments(days=7)
     top_posts = sorted(
@@ -66,17 +62,20 @@ def run() -> None:
     draft_path.write_text(draft, encoding="utf-8")
     print(f"[NEWSLETTER] Draft saved to {draft_path}")
 
-    subject = f"[電子報草稿] {date_str}"
-    body = f"本週 Top 5 貼文數據：\n{top_summary[:500]}\n\n---草稿---\n\n{draft}"
-    result = subprocess.run(
-        ["mail", "-s", subject, NEWSLETTER_EMAIL],
-        input=body.encode("utf-8"),
-        capture_output=True,
-    )
-    if result.returncode == 0:
-        print(f"[NEWSLETTER] Email sent to {NEWSLETTER_EMAIL}")
+    if not NEWSLETTER_EMAIL:
+        print("[NEWSLETTER] NEWSLETTER_EMAIL not set, skipping email")
     else:
-        print(f"[NEWSLETTER] Email failed: {result.stderr.decode()}")
+        subject = f"[電子報草稿] {date_str}"
+        body = f"本週 Top 5 貼文數據：\n{top_summary[:500]}\n\n---草稿---\n\n{draft}"
+        result = subprocess.run(
+            ["mail", "-s", subject, NEWSLETTER_EMAIL],
+            input=body.encode("utf-8"),
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            print(f"[NEWSLETTER] Email sent to {NEWSLETTER_EMAIL}")
+        else:
+            print(f"[NEWSLETTER] Email failed: {result.stderr.decode()}")
 
 
 if __name__ == "__main__":

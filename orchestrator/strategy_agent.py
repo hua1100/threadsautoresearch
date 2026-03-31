@@ -1,8 +1,8 @@
 """Strategy Agent: 分析過去 7 天數據，更新 prompts/strategy.md"""
 import json
 import anthropic
-from datetime import datetime, timezone, timedelta
-from orchestrator.config import ANTHROPIC_API_KEY, DATA_DIR, PROMPTS_DIR
+from datetime import datetime, timezone
+from orchestrator.config import ANTHROPIC_API_KEY, PROMPTS_DIR
 from orchestrator.utils import load_recent_experiments
 
 

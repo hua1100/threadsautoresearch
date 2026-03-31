@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 
 def test_load_recent_experiments_filters_by_date():
-    from orchestrator.strategy_agent import load_recent_experiments
+    from orchestrator.utils import load_recent_experiments
 
     now = datetime.now(timezone.utc)
     recent = now.isoformat()
