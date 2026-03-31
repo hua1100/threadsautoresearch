@@ -11,7 +11,6 @@ def test_fetch_snapshot_structure():
         "totalEmail": 23,
         "openRate": 0.357,
     }
-    mock_summary_v2 = {"subscribers": 27}
     mock_growth = {
         "sourceMetrics": [
             {"source": "substack", "category": "Traffic", "value": 12},
