@@ -30,25 +30,39 @@ class SubstackClient:
         return resp.json()
 
     def fetch_snapshot(self) -> dict:
-        """Fetch weekly snapshot: subscribers, open_rate, growth_sources."""
+        """Fetch weekly snapshot: subscribers, open_rate, growth_sources, threads_funnel."""
         if not self.sid:
             raise ValueError("SUBSTACK_SID not configured")
 
         summary = self._get("/api/v1/publish-dashboard/summary")
         growth = self._get("/api/v1/publication/stats/growth/sources")
 
-        # Parse growth sources — only Traffic category
-        growth_sources = [
-            {"source": m["source"], "value": m["value"]}
-            for m in growth.get("sourceMetrics", [])
-            if m.get("category") == "Traffic"
-        ]
+        # Parse growth sources — extract Traffic and Subscribers per source
+        growth_sources = []
+        threads_traffic = 0
+        threads_subs = 0
+        for m in growth.get("sourceMetrics", []):
+            metrics_by_name = {
+                metric["name"]: metric.get("total", 0)
+                for metric in m.get("metrics", [])
+            }
+            traffic = metrics_by_name.get("Traffic", 0)
+            new_subscribers = metrics_by_name.get("Subscribers", 0)
+            source_name = m["source"]
+            growth_sources.append({
+                "source": source_name,
+                "traffic": traffic,
+                "new_subscribers": new_subscribers,
+            })
+            if source_name == "threads.net":
+                threads_traffic = traffic
+                threads_subs = new_subscribers
 
-        subscribers = summary.get("subscribers", 0)
+        subscribers = summary.get("totalEmail", 0) + summary.get("appSubscribers", 0)
         total_email = summary.get("totalEmail", 0)
         open_rate_raw = summary.get("openRate", 0)
-        # Substack API always returns open rate as decimal (0.357 = 35.7%)
-        open_rate = round(float(open_rate_raw) * 100, 1) if open_rate_raw else 0.0
+        # Substack API returns open rate already as percentage (e.g. 25.9 = 25.9%)
+        open_rate = round(float(open_rate_raw), 1) if open_rate_raw else 0.0
 
         return {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -56,4 +70,9 @@ class SubstackClient:
             "total_email": total_email,
             "open_rate": open_rate,
             "growth_sources": growth_sources,
+            "threads_funnel": {
+                "traffic": threads_traffic,
+                "new_subscribers": threads_subs,
+                "conversion_rate": round(threads_subs / threads_traffic * 100, 1) if threads_traffic > 0 else 0.0,
+            },
         }
