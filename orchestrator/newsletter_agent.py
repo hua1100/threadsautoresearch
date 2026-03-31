@@ -4,9 +4,9 @@ import subprocess
 import anthropic
 from datetime import datetime, timezone
 from orchestrator.config import (
-    ANTHROPIC_API_KEY, PROMPTS_DIR, DRAFTS_DIR, NEWSLETTER_EMAIL
+    ANTHROPIC_API_KEY, PROMPTS_DIR, DRAFTS_DIR, NEWSLETTER_EMAIL, DATA_DIR
 )
-from orchestrator.utils import load_recent_experiments
+from orchestrator.utils import load_recent_experiments, read_json
 
 
 def run() -> None:
@@ -62,11 +62,31 @@ def run() -> None:
     draft_path.write_text(draft, encoding="utf-8")
     print(f"[NEWSLETTER] Draft saved to {draft_path}")
 
+    # Build funnel summary from latest Substack snapshot
+    funnel_section = ""
+    metrics_path = DATA_DIR / "substack_metrics.json"
+    metrics_history = read_json(metrics_path)
+    if isinstance(metrics_history, list) and metrics_history:
+        latest = metrics_history[-1]
+        prev = metrics_history[-2] if len(metrics_history) >= 2 else None
+        delta = latest.get("subscribers", 0) - prev.get("subscribers", 0) if prev else None
+        delta_str = f"+{delta}" if delta is not None and delta >= 0 else str(delta) if delta is not None else "首次記錄"
+        sources_str = ", ".join(
+            f"{s['source']}: {s['value']}"
+            for s in latest.get("growth_sources", [])
+        ) or "無資料"
+        funnel_section = (
+            f"\n\n## Substack 漏斗摘要（{latest.get('date', '')}）\n"
+            f"- 訂閱數：{latest.get('subscribers', 0)}（{delta_str} 本週）\n"
+            f"- Open Rate：{latest.get('open_rate', 0)}%\n"
+            f"- 流量來源：{sources_str}\n"
+        )
+
     if not NEWSLETTER_EMAIL:
         print("[NEWSLETTER] NEWSLETTER_EMAIL not set, skipping email")
     else:
         subject = f"[電子報草稿] {date_str}"
-        body = f"本週 Top 5 貼文數據：\n{top_summary[:500]}\n\n---草稿---\n\n{draft}"
+        body = f"本週 Top 5 貼文數據：\n{top_summary[:500]}{funnel_section}\n\n---草稿---\n\n{draft}"
         result = subprocess.run(
             ["mail", "-s", subject, NEWSLETTER_EMAIL],
             input=body.encode("utf-8"),

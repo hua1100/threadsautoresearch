@@ -1,8 +1,10 @@
 import json
 import tempfile
+import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone, timedelta
+from orchestrator import newsletter_agent
 
 
 def test_run_saves_draft_file():
@@ -81,3 +83,65 @@ def test_run_sends_email():
         call_args = mock_run.call_args
         assert call_args[0][0][0] == "mail"
         assert "test@test.com" in call_args[0][0]
+
+
+def test_newsletter_email_includes_funnel_summary(tmp_path, monkeypatch):
+    """Newsletter email body includes funnel summary when substack_metrics.json exists."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@example.com")
+
+    # Create fake substack_metrics.json with 2 snapshots (to test delta)
+    metrics = [
+        {"date": "2026-03-24", "subscribers": 25, "open_rate": 35.0, "total_email": 20, "growth_sources": []},
+        {"date": "2026-03-31", "subscribers": 27, "open_rate": 38.5, "total_email": 23, "growth_sources": [{"source": "substack", "value": 12}]},
+    ]
+    (tmp_path / "substack_metrics.json").write_text(json.dumps(metrics))
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.newsletter_agent.subprocess.run") as mock_run:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="電子報草稿內容")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+        mock_run.return_value = MagicMock(returncode=0)
+
+        newsletter_agent.run()
+
+    # Check email body contains funnel info
+    call_args = mock_run.call_args
+    email_body = call_args[1]["input"].decode("utf-8")
+    assert "訂閱數" in email_body
+    assert "27" in email_body
+    assert "+2" in email_body  # delta from 25 → 27
+
+
+def test_newsletter_email_no_delta_on_first_snapshot(tmp_path, monkeypatch):
+    """When only one snapshot exists, delta shows 首次記錄."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@example.com")
+
+    metrics = [
+        {"date": "2026-03-31", "subscribers": 27, "open_rate": 38.5, "total_email": 23, "growth_sources": []},
+    ]
+    (tmp_path / "substack_metrics.json").write_text(json.dumps(metrics))
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.newsletter_agent.subprocess.run") as mock_run:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="草稿")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+        mock_run.return_value = MagicMock(returncode=0)
+
+        newsletter_agent.run()
+
+    call_args = mock_run.call_args
+    email_body = call_args[1]["input"].decode("utf-8")
+    assert "27" in email_body
+    assert "首次記錄" in email_body
