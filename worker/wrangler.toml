@@ -1,0 +1,7 @@
+name = "lazy-pack-worker"
+main = "src/index.js"
+compatibility_date = "2026-03-31"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "lazy-packs"
