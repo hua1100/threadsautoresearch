@@ -99,3 +99,21 @@ def test_check_newsletter_status_skips_without_sid(tmp_path, monkeypatch):
         check_newsletter_status()
 
     MockClient.assert_not_called()
+
+
+def test_process_lazy_pack_triggers(tmp_path, monkeypatch):
+    """process_lazy_pack_triggers detects '懶人包' messages and triggers generation."""
+    monkeypatch.setattr("orchestrator.main.DATA_DIR", tmp_path)
+
+    posts = [{"media_id": "m_123", "text": "test post", "dimensions": {}}]
+    (tmp_path / "posts.json").write_text(json.dumps(posts))
+
+    messages = ["懶人包 m_123", "some other message", "懶人包 m_456"]
+
+    with patch("orchestrator.main.generate_lazy_pack") as mock_gen:
+        from orchestrator.main import process_lazy_pack_triggers
+        process_lazy_pack_triggers(messages)
+
+    # Only m_123 has a matching post in posts.json
+    assert mock_gen.call_count == 1
+    assert mock_gen.call_args[0][0]["media_id"] == "m_123"

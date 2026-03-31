@@ -13,6 +13,7 @@ from orchestrator.sources.x_curated import fetch_x_content, read_curated_file
 from orchestrator.notify import fetch_incoming_messages
 from orchestrator.substack_client import SubstackClient
 from orchestrator.utils import read_json, write_json
+from orchestrator.lazy_pack_agent import generate_lazy_pack, parse_telegram_trigger
 
 
 def detect_phase(follower_count: int) -> int:
@@ -29,6 +30,32 @@ def get_follower_count() -> int:
         return 0
 
 
+def process_lazy_pack_triggers(messages: list[str]) -> None:
+    """Check Telegram messages for lazy pack triggers and generate."""
+    all_posts = read_json(DATA_DIR / "posts.json")
+    if not isinstance(all_posts, list):
+        return
+
+    for msg in messages:
+        target = parse_telegram_trigger(msg)
+        if not target:
+            continue
+
+        post = next(
+            (p for p in all_posts
+             if p.get("media_id") == target or p.get("permalink") == target),
+            None,
+        )
+        if post:
+            print(f"[LAZY_PACK] Telegram trigger for {target}")
+            try:
+                generate_lazy_pack(post)
+            except Exception as e:
+                print(f"[LAZY_PACK] Generation failed: {e}")
+        else:
+            print(f"[LAZY_PACK] Post not found: {target}")
+
+
 def fetch_sources() -> dict:
     print("[1/5] SOURCE: 抓取素材...")
 
@@ -43,6 +70,10 @@ def fetch_sources() -> dict:
 
     telegram_msgs = fetch_incoming_messages()
     print(f"  Telegram: {len(telegram_msgs)} 則新訊息")
+
+    # Process lazy pack triggers from Telegram
+    process_lazy_pack_triggers(telegram_msgs)
+
     x = fetch_x_content(telegram_msgs)
     print(f"  X.com: {len(x)} 則新素材（+ 策展檔案）")
 
