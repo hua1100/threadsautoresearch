@@ -30,8 +30,16 @@ def deploy(posts: list[dict]) -> list[dict]:
             print(f"[DEPLOY] Failed to publish: {e}")
             media_id = None
 
+        permalink = None
+        if media_id:
+            try:
+                permalink = threads_client.get_post_permalink(media_id)
+            except Exception:
+                pass
+
         record = {
             "media_id": media_id,
+            "permalink": permalink,
             "text": text,
             "dimensions": post.get("dimensions", {}),
             "hypothesis": post.get("hypothesis", ""),
