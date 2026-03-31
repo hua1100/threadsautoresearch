@@ -202,3 +202,52 @@ def test_newsletter_email_no_funnel_when_no_metrics(tmp_path, monkeypatch):
     # Funnel section should be absent
     assert "訂閱數" not in email_body
     assert "Substack 漏斗" not in email_body
+
+
+def test_newsletter_uses_topic_from_status(tmp_path, monkeypatch):
+    """Newsletter prompt is driven by topic from newsletter_status.json."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "")
+
+    (tmp_path / "newsletter_status.json").write_text(
+        json.dumps({"week": "2026-03-31", "topic": "AI Agent 自動化實戰", "status": "pending"})
+    )
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="草稿內容")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        newsletter_agent.run()
+
+    prompt = MockAnthropic.return_value.messages.create.call_args[1]["messages"][0]["content"]
+    assert "AI Agent 自動化實戰" in prompt
+
+
+def test_newsletter_updates_status_to_draft(tmp_path, monkeypatch):
+    """After generating draft, newsletter_status.json is updated to draft."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "")
+
+    (tmp_path / "newsletter_status.json").write_text(
+        json.dumps({"week": "2026-03-31", "topic": "測試主題", "status": "pending"})
+    )
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="草稿")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        newsletter_agent.run()
+
+    status = json.loads((tmp_path / "newsletter_status.json").read_text())
+    assert status["status"] == "draft"
+    assert status["topic"] == "測試主題"

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from orchestrator.config import (
     ANTHROPIC_API_KEY, PROMPTS_DIR, DRAFTS_DIR, NEWSLETTER_EMAIL, DATA_DIR
 )
-from orchestrator.utils import load_recent_experiments, read_json
+from orchestrator.utils import load_recent_experiments, read_json, write_json
 
 
 def run() -> None:
@@ -30,6 +30,18 @@ def run() -> None:
 
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
+    # Read newsletter topic from status file
+    newsletter_status = read_json(DATA_DIR / "newsletter_status.json")
+    topic = ""
+    if isinstance(newsletter_status, dict):
+        topic = newsletter_status.get("topic", "")
+
+    topic_instruction = (
+        f"本週電子報主題是「{topic}」，以此為核心，參考相關的高表現貼文寫深度版本。"
+        if topic
+        else "根據本週最佳表現貼文寫電子報。"
+    )
+
     prompt = f"""你是一個 AI 電子報作者，為 Substack 電子報（hualeee.substack.com）撰寫本週內容。
 
 ## 本週 Threads 策略
@@ -41,8 +53,9 @@ def run() -> None:
 ## 本週最佳表現貼文數據
 {top_summary}
 
+{topic_instruction}
+
 請撰寫一篇完整的電子報草稿：
-- 是 Threads 最高互動主題的「深度版本」
 - 繁體中文
 - 格式：標題、引言、正文（3-5 個小節）、結語
 - 字數：800-1200 字
@@ -61,6 +74,11 @@ def run() -> None:
     draft_path = DRAFTS_DIR / f"newsletter_{date_str}.md"
     draft_path.write_text(draft, encoding="utf-8")
     print(f"[NEWSLETTER] Draft saved to {draft_path}")
+
+    # Update newsletter_status to draft
+    if isinstance(newsletter_status, dict):
+        newsletter_status["status"] = "draft"
+        write_json(DATA_DIR / "newsletter_status.json", newsletter_status)
 
     # Build funnel summary from latest Substack snapshot
     funnel_section = ""
@@ -85,14 +103,25 @@ def run() -> None:
         else:
             delta_str = "±0"
         sources_str = ", ".join(
-            f"{s['source']}: {s['value']}"
+            f"{s['source']}: {s.get('traffic', s.get('value', 0))}"
             for s in latest.get("growth_sources", [])
         ) or "無資料"
+
+        # Add threads funnel to summary
+        threads_funnel_str = ""
+        funnel = latest.get("threads_funnel")
+        if funnel and funnel.get("traffic", 0) > 0:
+            threads_funnel_str = (
+                f"\n- Threads 導流：{funnel['traffic']} 次 → {funnel['new_subscribers']} 訂閱"
+                f"（轉換率 {funnel['conversion_rate']}%）"
+            )
+
         funnel_section = (
             f"\n\n## Substack 漏斗摘要（{latest.get('date', '')}）\n"
             f"- 訂閱數：{latest.get('subscribers', 0)}（{delta_str} 本週）\n"
             f"- Open Rate：{latest.get('open_rate', 0)}%\n"
-            f"- 流量來源：{sources_str}\n"
+            f"- 流量來源：{sources_str}"
+            f"{threads_funnel_str}\n"
         )
 
     if not NEWSLETTER_EMAIL:
