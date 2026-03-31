@@ -41,3 +41,19 @@ LOGS_DIR = BASE_DIR / "logs"
 NEWSLETTER_EMAIL = os.environ.get("NEWSLETTER_EMAIL", "")
 SUBSTACK_SID = os.environ.get("SUBSTACK_SID", "")
 SUBSTACK_SUBDOMAIN = os.environ.get("SUBSTACK_SUBDOMAIN", "hualeee")
+
+# LINE Messaging API
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
+LINE_ADD_FRIEND_URL = os.environ.get("LINE_ADD_FRIEND_URL", "")
+
+# Cloudflare R2
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "lazy-packs")
+
+# Lazy Pack
+WORKER_BASE_URL = os.environ.get("WORKER_BASE_URL", "")
+LAZY_PACK_MIN_VIEWS = int(os.getenv("LAZY_PACK_MIN_VIEWS", "5000"))
+LAZY_PACKS_DIR = BASE_DIR / "data" / "lazy_packs"
