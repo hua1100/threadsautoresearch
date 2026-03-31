@@ -21,7 +21,7 @@ def test_load_recent_experiments_filters_by_date():
         data_dir = Path(tmp)
         (data_dir / "experiments.json").write_text(json.dumps(experiments))
 
-        with patch("orchestrator.strategy_agent.DATA_DIR", data_dir):
+        with patch("orchestrator.utils.DATA_DIR", data_dir):
             result = load_recent_experiments(days=7)
 
     assert len(result) == 1
@@ -42,7 +42,7 @@ def test_run_writes_strategy_md():
         (data_dir / "experiments.json").write_text("[]")
 
         with patch("orchestrator.strategy_agent.anthropic") as mock_anthropic, \
-             patch("orchestrator.strategy_agent.DATA_DIR", data_dir), \
+             patch("orchestrator.utils.DATA_DIR", data_dir), \
              patch("orchestrator.strategy_agent.PROMPTS_DIR", prompts_dir):
 
             mock_client = MagicMock()

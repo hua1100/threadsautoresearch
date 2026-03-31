@@ -1,6 +1,29 @@
 import json
 import re
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from orchestrator.config import DATA_DIR
+
+
+def load_recent_experiments(days: int = 7) -> list[dict]:
+    """Load experiments from the last N days from data/experiments.json."""
+    path = DATA_DIR / "experiments.json"
+    if not path.exists():
+        return []
+    experiments = json.loads(path.read_text(encoding="utf-8"))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    recent = []
+    for exp in experiments:
+        ts = exp.get("harvested_at", "")
+        try:
+            dt = datetime.fromisoformat(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt >= cutoff:
+                recent.append(exp)
+        except (ValueError, TypeError):
+            pass
+    return recent
 
 
 def read_json(path: Path) -> list | dict:

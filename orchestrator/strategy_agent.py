@@ -3,26 +3,7 @@ import json
 import anthropic
 from datetime import datetime, timezone, timedelta
 from orchestrator.config import ANTHROPIC_API_KEY, DATA_DIR, PROMPTS_DIR
-
-
-def load_recent_experiments(days: int = 7) -> list[dict]:
-    path = DATA_DIR / "experiments.json"
-    if not path.exists():
-        return []
-    experiments = json.loads(path.read_text(encoding="utf-8"))
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    recent = []
-    for exp in experiments:
-        ts = exp.get("harvested_at", "")
-        try:
-            dt = datetime.fromisoformat(ts)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt >= cutoff:
-                recent.append(exp)
-        except (ValueError, TypeError):
-            pass
-    return recent
+from orchestrator.utils import load_recent_experiments
 
 
 def run() -> None:

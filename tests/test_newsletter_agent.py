@@ -25,7 +25,7 @@ def test_run_saves_draft_file():
         (prompts_dir / "swipe_file.md").write_text("# Swipe File\n範例貼文")
 
         with patch("orchestrator.newsletter_agent.anthropic") as mock_anthropic, \
-             patch("orchestrator.newsletter_agent.DATA_DIR", data_dir), \
+             patch("orchestrator.utils.DATA_DIR", data_dir), \
              patch("orchestrator.newsletter_agent.PROMPTS_DIR", prompts_dir), \
              patch("orchestrator.newsletter_agent.DRAFTS_DIR", drafts_dir), \
              patch("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@test.com"), \
@@ -64,7 +64,7 @@ def test_run_sends_email():
         (prompts_dir / "swipe_file.md").write_text("")
 
         with patch("orchestrator.newsletter_agent.anthropic") as mock_anthropic, \
-             patch("orchestrator.newsletter_agent.DATA_DIR", data_dir), \
+             patch("orchestrator.utils.DATA_DIR", data_dir), \
              patch("orchestrator.newsletter_agent.PROMPTS_DIR", prompts_dir), \
              patch("orchestrator.newsletter_agent.DRAFTS_DIR", drafts_dir), \
              patch("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@test.com"), \
