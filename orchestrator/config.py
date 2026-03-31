@@ -36,3 +36,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 PROMPTS_DIR = BASE_DIR / "prompts"
 DATA_DIR = BASE_DIR / "data"
+DRAFTS_DIR = BASE_DIR / "drafts"
+LOGS_DIR = BASE_DIR / "logs"
+NEWSLETTER_EMAIL = os.environ.get("NEWSLETTER_EMAIL", "")
+SUBSTACK_SID = os.environ.get("SUBSTACK_SID", "")
+SUBSTACK_SUBDOMAIN = os.environ.get("SUBSTACK_SUBDOMAIN", "hualeee")

@@ -5,5 +5,5 @@ In GitHub Actions, this will be skipped (no browser).
 """
 
 
-def harvest_browser(post_ids: list[str]) -> dict[str, dict]:
+def harvest_browser(post_ids: list[str], permalinks: dict | None = None) -> dict[str, dict]:
     return {}

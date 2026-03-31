@@ -29,6 +29,7 @@ def generate(analysis: dict, sources: dict) -> list[dict]:
     program = _read_prompt("program.md")
     swipe = _read_prompt("swipe_file.md")
     resource = _read_prompt("resource.md")
+    strategy = _read_prompt("strategy.md")
 
     round_number = analysis.get("round_number", 1)
     learnings = analysis.get("learnings", "")
@@ -63,6 +64,9 @@ def generate(analysis: dict, sources: dict) -> list[dict]:
     ) or "（首次運行，無歷史數據）"
 
     prompt = f"""{program}
+
+## 本週流量策略
+{strategy}
 
 ## 高表現範例庫
 {swipe}
@@ -99,7 +103,7 @@ def generate(analysis: dict, sources: dict) -> list[dict]:
       "content_type": "工具分享|開發心得|教學知識點|新聞/趨勢|觀點/辯論",
       "strategy": "使用的策略編號，如 1+7",
       "tone": "專業分析|輕鬆口語|急迫感|教學口吻",
-      "cta": "無CTA|留言互動|分享給朋友",
+      "cta": "無CTA|留言互動|分享給朋友|電子報CTA",
       "source": "素材來源"
     }},
     "hypothesis": "這篇在測試什麼策略"
