@@ -1,6 +1,6 @@
 import sys
 import traceback
-from orchestrator.config import PHASE_SWITCH_FOLLOWER_THRESHOLD
+from orchestrator.config import PHASE_SWITCH_FOLLOWER_THRESHOLD, DATA_DIR, SUBSTACK_SID, SUBSTACK_SUBDOMAIN
 from orchestrator.harvest import harvest
 from orchestrator.analyze import analyze
 from orchestrator.generate import generate
@@ -11,6 +11,8 @@ from orchestrator.sources.youtube import fetch_all_channels
 from orchestrator.sources.github import list_local_repos, fetch_recent_activity
 from orchestrator.sources.x_curated import fetch_x_content, read_curated_file
 from orchestrator.notify import fetch_incoming_messages
+from orchestrator.substack_client import SubstackClient
+from orchestrator.utils import read_json, write_json
 
 
 def detect_phase(follower_count: int) -> int:
@@ -47,11 +49,41 @@ def fetch_sources() -> dict:
     return {"youtube": youtube, "github": github, "x": x}
 
 
+def check_newsletter_status():
+    """Auto-detect new Substack publication, update newsletter_status.json."""
+    if not SUBSTACK_SID:
+        return
+    newsletter = read_json(DATA_DIR / "newsletter_status.json")
+    if not isinstance(newsletter, dict):
+        return
+    if newsletter.get("status") == "published":
+        return
+
+    try:
+        client = SubstackClient(subdomain=SUBSTACK_SUBDOMAIN, sid=SUBSTACK_SID)
+        latest = client.fetch_latest_post()
+    except Exception as e:
+        print(f"[NEWSLETTER] Failed to check Substack: {e}")
+        return
+
+    if not latest:
+        return
+
+    if latest["url"] != newsletter.get("url"):
+        newsletter["status"] = "published"
+        newsletter["url"] = latest["url"]
+        newsletter["published_at"] = latest["date"]
+        write_json(DATA_DIR / "newsletter_status.json", newsletter)
+        print(f"[NEWSLETTER] 偵測到新電子報: {latest['title']}")
+
+
 def run():
     try:
         follower_count = get_follower_count()
         phase = detect_phase(follower_count)
         print(f"[0/5] Phase {phase} | 追蹤者: {follower_count}")
+
+        check_newsletter_status()
 
         sources = fetch_sources()
 
