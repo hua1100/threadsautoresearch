@@ -145,3 +145,60 @@ def test_newsletter_email_no_delta_on_first_snapshot(tmp_path, monkeypatch):
     email_body = call_args[1]["input"].decode("utf-8")
     assert "27" in email_body
     assert "首次記錄" in email_body
+
+
+def test_newsletter_email_zero_delta(tmp_path, monkeypatch):
+    """When subscriber count is unchanged between snapshots, delta shows ±0."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@example.com")
+
+    metrics = [
+        {"date": "2026-03-24", "subscribers": 27, "open_rate": 35.0, "total_email": 20, "growth_sources": []},
+        {"date": "2026-03-31", "subscribers": 27, "open_rate": 38.5, "total_email": 23, "growth_sources": []},
+    ]
+    (tmp_path / "substack_metrics.json").write_text(json.dumps(metrics))
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.newsletter_agent.subprocess.run") as mock_run:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="草稿")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+        mock_run.return_value = MagicMock(returncode=0)
+
+        newsletter_agent.run()
+
+    call_args = mock_run.call_args
+    email_body = call_args[1]["input"].decode("utf-8")
+    assert "±0" in email_body
+
+
+def test_newsletter_email_no_funnel_when_no_metrics(tmp_path, monkeypatch):
+    """When substack_metrics.json does not exist, email sends without funnel section."""
+    monkeypatch.setattr("orchestrator.newsletter_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr("orchestrator.newsletter_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.newsletter_agent.NEWSLETTER_EMAIL", "test@example.com")
+    # Note: no substack_metrics.json created in tmp_path
+
+    with patch("orchestrator.newsletter_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.newsletter_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.newsletter_agent.subprocess.run") as mock_run:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="草稿")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+        mock_run.return_value = MagicMock(returncode=0)
+
+        newsletter_agent.run()  # Must not raise
+
+    # Email was sent (subprocess.run was called)
+    assert mock_run.called
+    call_args = mock_run.call_args
+    email_body = call_args[1]["input"].decode("utf-8")
+    # Funnel section should be absent
+    assert "訂閱數" not in email_body
+    assert "Substack 漏斗" not in email_body

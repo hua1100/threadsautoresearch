@@ -69,8 +69,21 @@ def run() -> None:
     if isinstance(metrics_history, list) and metrics_history:
         latest = metrics_history[-1]
         prev = metrics_history[-2] if len(metrics_history) >= 2 else None
-        delta = latest.get("subscribers", 0) - prev.get("subscribers", 0) if prev else None
-        delta_str = f"+{delta}" if delta is not None and delta >= 0 else str(delta) if delta is not None else "首次記錄"
+        delta = (
+            latest.get("subscribers") - prev.get("subscribers")
+            if prev
+            and latest.get("subscribers") is not None
+            and prev.get("subscribers") is not None
+            else None
+        )
+        if delta is None:
+            delta_str = "首次記錄"
+        elif delta > 0:
+            delta_str = f"+{delta}"
+        elif delta < 0:
+            delta_str = str(delta)
+        else:
+            delta_str = "±0"
         sources_str = ", ".join(
             f"{s['source']}: {s['value']}"
             for s in latest.get("growth_sources", [])
