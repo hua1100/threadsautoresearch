@@ -2,8 +2,9 @@
 import json
 import anthropic
 from datetime import datetime, timezone
-from orchestrator.config import ANTHROPIC_API_KEY, PROMPTS_DIR
-from orchestrator.utils import load_recent_experiments
+from orchestrator.config import ANTHROPIC_API_KEY, PROMPTS_DIR, DATA_DIR, SUBSTACK_SID, SUBSTACK_SUBDOMAIN
+from orchestrator.substack_client import SubstackClient
+from orchestrator.utils import load_recent_experiments, read_json, write_json
 
 
 def run() -> None:
@@ -13,8 +14,37 @@ def run() -> None:
     if resource_path.exists():
         resource = resource_path.read_text(encoding="utf-8")
 
+    # Fetch and store Substack snapshot (skip if not configured)
+    substack_snapshot = None
+    if SUBSTACK_SID:
+        try:
+            client = SubstackClient(subdomain=SUBSTACK_SUBDOMAIN, sid=SUBSTACK_SID)
+            substack_snapshot = client.fetch_snapshot()
+            metrics_path = DATA_DIR / "substack_metrics.json"
+            existing = read_json(metrics_path)
+            if not isinstance(existing, list):
+                existing = []
+            existing.append(substack_snapshot)
+            write_json(metrics_path, existing)
+            print(f"[STRATEGY] Substack snapshot saved: {substack_snapshot['subscribers']} subscribers")
+        except Exception as e:
+            print(f"[STRATEGY] Substack snapshot failed (skipping): {e}")
+
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     exp_summary = json.dumps(experiments, ensure_ascii=False, indent=2)
+
+    substack_section = ""
+    if substack_snapshot:
+        sources_str = ", ".join(
+            f"{s['source']}: {s['value']}"
+            for s in substack_snapshot.get("growth_sources", [])
+        )
+        substack_section = (
+            f"\n## Substack 電子報現況\n"
+            f"- 訂閱數：{substack_snapshot['subscribers']}\n"
+            f"- Open Rate：{substack_snapshot['open_rate']}%\n"
+            f"- 流量來源：{sources_str}\n"
+        )
 
     prompt = f"""你是一個 Threads 內容策略師。分析過去 7 天的貼文數據，制定本週流量策略。
 
@@ -23,7 +53,7 @@ def run() -> None:
 
 ## 累積學習
 {resource}
-
+{substack_section}
 請制定本週策略，輸出以下格式的 Markdown（直接輸出，不要有前綴說明）：
 
 # 本週流量策略（{date_str} 更新）
