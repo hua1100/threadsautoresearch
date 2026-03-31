@@ -92,6 +92,11 @@ def test_strategy_agent_saves_substack_snapshot(tmp_path, monkeypatch):
     assert isinstance(data, list)
     assert data[-1]["subscribers"] == 30
 
+    # Verify Substack section was injected into the prompt
+    call_args = MockAnthropic.return_value.messages.create.call_args
+    prompt_text = call_args[1]["messages"][0]["content"]
+    assert "訂閱數：30" in prompt_text
+
 
 def test_strategy_agent_skips_snapshot_without_sid(tmp_path, monkeypatch):
     """Strategy agent skips snapshot gracefully when SUBSTACK_SID is empty."""
@@ -99,7 +104,8 @@ def test_strategy_agent_skips_snapshot_without_sid(tmp_path, monkeypatch):
     monkeypatch.setattr("orchestrator.strategy_agent.PROMPTS_DIR", tmp_path)
     monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SID", "")
 
-    with patch("orchestrator.strategy_agent.load_recent_experiments", return_value=[]), \
+    with patch("orchestrator.strategy_agent.SubstackClient") as MockClient, \
+         patch("orchestrator.strategy_agent.load_recent_experiments", return_value=[]), \
          patch("orchestrator.strategy_agent.anthropic.Anthropic") as MockAnthropic:
 
         mock_resp = MagicMock()
@@ -108,6 +114,7 @@ def test_strategy_agent_skips_snapshot_without_sid(tmp_path, monkeypatch):
 
         from orchestrator import strategy_agent
         strategy_agent.run()  # Should not raise
+        assert MockClient.call_count == 0
 
     # No metrics file written
     assert not (tmp_path / "substack_metrics.json").exists()

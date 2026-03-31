@@ -41,8 +41,8 @@ def run() -> None:
         )
         substack_section = (
             f"\n## Substack 電子報現況\n"
-            f"- 訂閱數：{substack_snapshot['subscribers']}\n"
-            f"- Open Rate：{substack_snapshot['open_rate']}%\n"
+            f"- 訂閱數：{substack_snapshot.get('subscribers', 0)}\n"
+            f"- Open Rate：{substack_snapshot.get('open_rate', 0)}%\n"
             f"- 流量來源：{sources_str}\n"
         )
 
@@ -54,6 +54,7 @@ def run() -> None:
 ## 累積學習
 {resource}
 {substack_section}
+
 請制定本週策略，輸出以下格式的 Markdown（直接輸出，不要有前綴說明）：
 
 # 本週流量策略（{date_str} 更新）
