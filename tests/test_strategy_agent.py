@@ -69,7 +69,8 @@ def test_strategy_agent_saves_substack_snapshot(tmp_path, monkeypatch):
         "subscribers": 30,
         "total_email": 23,
         "open_rate": 38.5,
-        "growth_sources": [{"source": "substack", "value": 15}],
+        "growth_sources": [{"source": "substack", "traffic": 15, "new_subscribers": 1}],
+        "threads_funnel": {"traffic": 0, "new_subscribers": 0, "conversion_rate": 0.0},
     }
 
     with patch("orchestrator.strategy_agent.SubstackClient") as MockClient, \
@@ -118,3 +119,62 @@ def test_strategy_agent_skips_snapshot_without_sid(tmp_path, monkeypatch):
 
     # No metrics file written
     assert not (tmp_path / "substack_metrics.json").exists()
+
+
+def test_strategy_agent_includes_threads_funnel_in_prompt(tmp_path, monkeypatch):
+    """Strategy prompt includes threads_funnel data when available."""
+    monkeypatch.setattr("orchestrator.strategy_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SID", "fake-sid")
+    monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SUBDOMAIN", "hualeee")
+
+    fake_snapshot = {
+        "date": "2026-03-31",
+        "subscribers": 31,
+        "total_email": 27,
+        "open_rate": 25.9,
+        "growth_sources": [{"source": "threads.net", "traffic": 10, "new_subscribers": 2}],
+        "threads_funnel": {"traffic": 10, "new_subscribers": 2, "conversion_rate": 20.0},
+    }
+
+    with patch("orchestrator.strategy_agent.SubstackClient") as MockClient, \
+         patch("orchestrator.strategy_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.strategy_agent.anthropic.Anthropic") as MockAnthropic:
+
+        MockClient.return_value.fetch_snapshot.return_value = fake_snapshot
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="# 本週流量策略\n## 本週電子報主題\nAI Agent 成本")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        from orchestrator import strategy_agent
+        strategy_agent.run()
+
+    prompt = MockAnthropic.return_value.messages.create.call_args[1]["messages"][0]["content"]
+    assert "Threads → 電子報轉換漏斗" in prompt
+    assert "轉換率：20.0%" in prompt
+
+
+def test_strategy_agent_inits_newsletter_status(tmp_path, monkeypatch):
+    """Strategy agent creates newsletter_status.json with topic from strategy.md."""
+    monkeypatch.setattr("orchestrator.strategy_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SID", "")
+
+    with patch("orchestrator.strategy_agent.SubstackClient"), \
+         patch("orchestrator.strategy_agent.load_recent_experiments", return_value=[]), \
+         patch("orchestrator.strategy_agent.anthropic.Anthropic") as MockAnthropic:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="# 本週流量策略\n## 目標\n衝觸及\n## 本週電子報主題\nAI 工具自動化實戰")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        from orchestrator import strategy_agent
+        strategy_agent.run()
+
+    status_path = tmp_path / "newsletter_status.json"
+    assert status_path.exists()
+    status = json.loads(status_path.read_text())
+    assert status["status"] == "pending"
+    assert status["topic"] == "AI 工具自動化實戰"
+    assert "week" in status

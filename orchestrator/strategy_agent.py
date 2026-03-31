@@ -1,10 +1,17 @@
 """Strategy Agent: 分析過去 7 天數據，更新 prompts/strategy.md"""
 import json
+import re
 import anthropic
 from datetime import datetime, timezone
 from orchestrator.config import ANTHROPIC_API_KEY, PROMPTS_DIR, DATA_DIR, SUBSTACK_SID, SUBSTACK_SUBDOMAIN
 from orchestrator.substack_client import SubstackClient
 from orchestrator.utils import load_recent_experiments, read_json, write_json
+
+
+def _extract_newsletter_topic(strategy_text: str) -> str:
+    """Extract newsletter topic from strategy.md content."""
+    match = re.search(r"## 本週電子報主題\s*\n(.+)", strategy_text)
+    return match.group(1).strip() if match else ""
 
 
 def run() -> None:
@@ -36,7 +43,7 @@ def run() -> None:
     substack_section = ""
     if substack_snapshot:
         sources_str = ", ".join(
-            f"{s['source']}: {s['value']}"
+            f"{s['source']}: {s.get('traffic', s.get('value', 0))}"
             for s in substack_snapshot.get("growth_sources", [])
         )
         substack_section = (
@@ -45,6 +52,15 @@ def run() -> None:
             f"- Open Rate：{substack_snapshot.get('open_rate', 0)}%\n"
             f"- 流量來源：{sources_str}\n"
         )
+
+        funnel = substack_snapshot.get("threads_funnel")
+        if funnel:
+            substack_section += (
+                f"\n## Threads → 電子報轉換漏斗\n"
+                f"- Threads 導流：{funnel['traffic']} 次點擊\n"
+                f"- 新增訂閱：{funnel['new_subscribers']}\n"
+                f"- 轉換率：{funnel['conversion_rate']}%\n"
+            )
 
     prompt = f"""你是一個 Threads 內容策略師。分析過去 7 天的貼文數據，制定本週流量策略。
 
@@ -72,7 +88,10 @@ def run() -> None:
 - [範例 2]
 
 ## 本週不加 CTA 的主題
-- [主題列表]"""
+- [主題列表]
+
+## 本週電子報主題
+[一句話描述本週電子報要寫的主題，基於最高互動的貼文方向]"""
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     response = client.messages.create(
@@ -83,6 +102,16 @@ def run() -> None:
     strategy = response.content[0].text.strip()
     (PROMPTS_DIR / "strategy.md").write_text(strategy, encoding="utf-8")
     print(f"[STRATEGY] strategy.md updated ({len(strategy)} chars)")
+
+    # Initialize newsletter_status.json
+    topic = _extract_newsletter_topic(strategy)
+    newsletter_status = {
+        "week": date_str,
+        "topic": topic,
+        "status": "pending",
+    }
+    write_json(DATA_DIR / "newsletter_status.json", newsletter_status)
+    print(f"[STRATEGY] newsletter_status.json initialized (topic: {topic})")
 
 
 if __name__ == "__main__":
