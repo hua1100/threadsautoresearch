@@ -37,6 +37,18 @@ def deploy(posts: list[dict]) -> list[dict]:
             except Exception:
                 pass
 
+        # Auto-reply with newsletter link for 電子報CTA posts
+        if media_id and post.get("dimensions", {}).get("cta") == "電子報CTA":
+            newsletter = read_json(DATA_DIR / "newsletter_status.json")
+            if isinstance(newsletter, dict) and newsletter.get("status") == "published":
+                try:
+                    url = newsletter["url"]
+                    reply_text = f"完整深度分析在這裡 👉 {url}"
+                    threads_client.reply_to_post(media_id, reply_text)
+                    print(f"[DEPLOY] Auto-replied with newsletter link: {url}")
+                except Exception as e:
+                    print(f"[DEPLOY] Failed to reply with newsletter link: {e}")
+
         record = {
             "media_id": media_id,
             "permalink": permalink,
