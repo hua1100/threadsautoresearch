@@ -76,3 +76,14 @@ class SubstackClient:
                 "conversion_rate": round(threads_subs / threads_traffic * 100, 1) if threads_traffic > 0 else 0.0,
             },
         }
+
+    def fetch_latest_post(self) -> dict | None:
+        """Fetch the most recently published newsletter post."""
+        posts = self._get("/api/v1/archive", params={"sort": "new", "limit": 1})
+        if posts:
+            return {
+                "title": posts[0]["title"],
+                "url": posts[0]["canonical_url"],
+                "date": posts[0]["post_date"],
+            }
+        return None

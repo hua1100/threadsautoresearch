@@ -129,3 +129,33 @@ def test_fetch_snapshot_threads_funnel_zero_traffic():
     assert funnel["traffic"] == 0
     assert funnel["new_subscribers"] == 0
     assert funnel["conversion_rate"] == 0.0
+
+
+def test_fetch_latest_post_returns_dict():
+    """fetch_latest_post returns title, url, date from archive API."""
+    client = SubstackClient(subdomain="hualeee", sid="fake-sid")
+    mock_archive = [
+        {
+            "title": "AI Agent 深度分析",
+            "canonical_url": "https://hualeee.substack.com/p/ai-agent",
+            "post_date": "2026-03-31T01:48:41.971Z",
+            "type": "newsletter",
+        }
+    ]
+
+    with patch.object(client, "_get", return_value=mock_archive):
+        result = client.fetch_latest_post()
+
+    assert result["title"] == "AI Agent 深度分析"
+    assert result["url"] == "https://hualeee.substack.com/p/ai-agent"
+    assert result["date"] == "2026-03-31T01:48:41.971Z"
+
+
+def test_fetch_latest_post_empty_archive():
+    """fetch_latest_post returns None when archive is empty."""
+    client = SubstackClient(subdomain="hualeee", sid="fake-sid")
+
+    with patch.object(client, "_get", return_value=[]):
+        result = client.fetch_latest_post()
+
+    assert result is None
