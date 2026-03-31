@@ -19,13 +19,15 @@ def test_fetch_snapshot_structure():
         ]
     }
 
-    with patch.object(client, "_get", side_effect=[mock_summary, mock_summary_v2, mock_growth]):
+    with patch.object(client, "_get", side_effect=[mock_summary, mock_growth]):
         snapshot = client.fetch_snapshot()
 
     assert snapshot["subscribers"] == 27
     assert snapshot["total_email"] == 23
     assert abs(snapshot["open_rate"] - 35.7) < 0.1
-    assert isinstance(snapshot["growth_sources"], list)
+    assert len(snapshot["growth_sources"]) == 2
+    assert {"source": "substack", "value": 12} in snapshot["growth_sources"]
+    assert {"source": "direct", "value": 8} in snapshot["growth_sources"]
     assert "date" in snapshot
 
 
@@ -46,7 +48,7 @@ def test_growth_sources_filtered():
             {"source": "email", "category": "Traffic", "value": 5},
         ]
     }
-    with patch.object(client, "_get", side_effect=[{}, {}, mock_growth]):
+    with patch.object(client, "_get", side_effect=[{}, mock_growth]):
         snapshot = client.fetch_snapshot()
 
     sources = {s["source"]: s["value"] for s in snapshot["growth_sources"]}

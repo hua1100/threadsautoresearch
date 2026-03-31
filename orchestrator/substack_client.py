@@ -35,8 +35,6 @@ class SubstackClient:
             raise ValueError("SUBSTACK_SID not configured")
 
         summary = self._get("/api/v1/publish-dashboard/summary")
-        # summary_v2 has same subscriber count but confirms the value
-        self._get("/api/v1/publish-dashboard/summary-v2", {"range": 30})
         growth = self._get("/api/v1/publication/stats/growth/sources")
 
         # Parse growth sources — only Traffic category
@@ -49,7 +47,8 @@ class SubstackClient:
         subscribers = summary.get("subscribers", 0)
         total_email = summary.get("totalEmail", 0)
         open_rate_raw = summary.get("openRate", 0)
-        open_rate = round(float(open_rate_raw) * 100, 1) if open_rate_raw and open_rate_raw < 1 else float(open_rate_raw or 0)
+        # Substack API always returns open rate as decimal (0.357 = 35.7%)
+        open_rate = round(float(open_rate_raw) * 100, 1) if open_rate_raw else 0.0
 
         return {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
