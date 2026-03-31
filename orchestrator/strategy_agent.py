@@ -3,7 +3,11 @@ import json
 import re
 import anthropic
 from datetime import datetime, timezone
-from orchestrator.config import ANTHROPIC_API_KEY, PROMPTS_DIR, DATA_DIR, SUBSTACK_SID, SUBSTACK_SUBDOMAIN
+from orchestrator.config import (
+    ANTHROPIC_API_KEY, PROMPTS_DIR, DATA_DIR, SUBSTACK_SID, SUBSTACK_SUBDOMAIN,
+    LAZY_PACK_MIN_VIEWS,
+)
+from orchestrator.lazy_pack_agent import generate_lazy_pack
 from orchestrator.substack_client import SubstackClient
 from orchestrator.utils import load_recent_experiments, read_json, write_json
 
@@ -112,6 +116,35 @@ def run() -> None:
     }
     write_json(DATA_DIR / "newsletter_status.json", newsletter_status)
     print(f"[STRATEGY] newsletter_status.json initialized (topic: {topic})")
+
+    # Auto-trigger lazy pack for top performing post
+    try:
+        all_results = [
+            r for exp in experiments for r in exp.get("results", [])
+        ]
+        if all_results:
+            top = max(all_results, key=lambda x: x.get("score", 0))
+            if top.get("views", 0) >= LAZY_PACK_MIN_VIEWS:
+                # Check if already generated
+                existing_packs = read_json(DATA_DIR / "lazy_packs.json")
+                if not isinstance(existing_packs, list):
+                    existing_packs = []
+                already_done = any(
+                    p.get("media_id") == top.get("media_id") for p in existing_packs
+                )
+                if not already_done:
+                    # Look up full post data from posts.json
+                    all_posts = read_json(DATA_DIR / "posts.json")
+                    if isinstance(all_posts, list):
+                        full_post = next(
+                            (p for p in all_posts if p.get("media_id") == top.get("media_id")),
+                            None,
+                        )
+                        if full_post:
+                            print(f"[STRATEGY] Triggering lazy pack for top post: {top.get('media_id')}")
+                            generate_lazy_pack(full_post)
+    except Exception as e:
+        print(f"[STRATEGY] Lazy pack trigger failed: {e}")
 
 
 if __name__ == "__main__":

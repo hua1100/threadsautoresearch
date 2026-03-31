@@ -178,3 +178,81 @@ def test_strategy_agent_inits_newsletter_status(tmp_path, monkeypatch):
     assert status["status"] == "pending"
     assert status["topic"] == "AI 工具自動化實戰"
     assert "week" in status
+
+
+def test_strategy_agent_triggers_lazy_pack_for_top_post(tmp_path, monkeypatch):
+    """Strategy agent triggers lazy pack for top post when views >= threshold."""
+    monkeypatch.setattr("orchestrator.strategy_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SID", "")
+    monkeypatch.setattr("orchestrator.strategy_agent.LAZY_PACK_MIN_VIEWS", 100)
+
+    experiments = [
+        {
+            "harvested_at": datetime.now(timezone.utc).isoformat(),
+            "results": [
+                {"media_id": "top_1", "score": 1.0, "views": 5000, "likes": 50, "replies": 10},
+                {"media_id": "low_1", "score": 0.2, "views": 50, "likes": 1, "replies": 0},
+            ],
+        }
+    ]
+
+    posts = [
+        {"media_id": "top_1", "text": "高表現貼文", "dimensions": {"content_type": "工具分享", "source": "youtube"}},
+        {"media_id": "low_1", "text": "低表現", "dimensions": {}},
+    ]
+    (tmp_path / "posts.json").write_text(json.dumps(posts))
+
+    with patch("orchestrator.strategy_agent.SubstackClient"), \
+         patch("orchestrator.strategy_agent.load_recent_experiments", return_value=experiments), \
+         patch("orchestrator.strategy_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.strategy_agent.generate_lazy_pack") as mock_lazy:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="# 本週流量策略\n## 本週電子報主題\n測試")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        from orchestrator import strategy_agent
+        strategy_agent.run()
+
+    mock_lazy.assert_called_once()
+    call_post = mock_lazy.call_args[0][0]
+    assert call_post["media_id"] == "top_1"
+
+
+def test_strategy_agent_skips_lazy_pack_when_already_exists(tmp_path, monkeypatch):
+    """Strategy agent skips lazy pack if media_id already in lazy_packs.json."""
+    monkeypatch.setattr("orchestrator.strategy_agent.DATA_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.PROMPTS_DIR", tmp_path)
+    monkeypatch.setattr("orchestrator.strategy_agent.SUBSTACK_SID", "")
+    monkeypatch.setattr("orchestrator.strategy_agent.LAZY_PACK_MIN_VIEWS", 100)
+
+    experiments = [
+        {
+            "harvested_at": datetime.now(timezone.utc).isoformat(),
+            "results": [
+                {"media_id": "top_1", "score": 1.0, "views": 5000, "likes": 50, "replies": 10},
+            ],
+        }
+    ]
+
+    posts = [{"media_id": "top_1", "text": "已有懶人包", "dimensions": {}}]
+    (tmp_path / "posts.json").write_text(json.dumps(posts))
+
+    (tmp_path / "lazy_packs.json").write_text(json.dumps([
+        {"media_id": "top_1", "keyword": "old"}
+    ]))
+
+    with patch("orchestrator.strategy_agent.SubstackClient"), \
+         patch("orchestrator.strategy_agent.load_recent_experiments", return_value=experiments), \
+         patch("orchestrator.strategy_agent.anthropic.Anthropic") as MockAnthropic, \
+         patch("orchestrator.strategy_agent.generate_lazy_pack") as mock_lazy:
+
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="# 本週流量策略\n## 本週電子報主題\n測試")]
+        MockAnthropic.return_value.messages.create.return_value = mock_resp
+
+        from orchestrator import strategy_agent
+        strategy_agent.run()
+
+    mock_lazy.assert_not_called()
