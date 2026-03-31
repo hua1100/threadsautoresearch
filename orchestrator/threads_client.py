@@ -5,13 +5,15 @@ from orchestrator.config import THREADS_ACCESS_TOKEN, THREADS_USER_ID
 BASE_URL = "https://graph.threads.net/v1.0"
 
 
-def create_post(text: str) -> str | None:
+def create_post(text: str, reply_to_id: str | None = None) -> str | None:
     url = f"{BASE_URL}/{THREADS_USER_ID}/threads"
     payload = {
         "media_type": "TEXT",
         "text": text,
         "access_token": THREADS_ACCESS_TOKEN,
     }
+    if reply_to_id:
+        payload["reply_to_id"] = reply_to_id
     resp = requests.post(url, json=payload)
     resp.raise_for_status()
     return resp.json().get("id")
@@ -33,6 +35,15 @@ def post_text(text: str, wait_seconds: int = 30) -> str | None:
     if not creation_id:
         return None
     time.sleep(wait_seconds)
+    return publish_post(creation_id)
+
+
+def reply_to_post(media_id: str, text: str) -> str | None:
+    """Reply to an existing post with a comment."""
+    creation_id = create_post(text, reply_to_id=media_id)
+    if not creation_id:
+        return None
+    time.sleep(30)
     return publish_post(creation_id)
 
 
