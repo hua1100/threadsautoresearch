@@ -129,20 +129,19 @@ Threads 觸及 → 電子報導流 → 變現漏斗
 ## 禁止事項
 ```
 
-## launchd 排程
+## cron 排程
 
-三個 plist 檔案放在 `~/Library/LaunchAgents/`：
+加入 crontab（`crontab -e`）：
 
-| 檔案 | 執行時間 |
-|------|----------|
-| `com.autoresearch.content-agent.plist` | 每天 08:00、20:00 |
-| `com.autoresearch.strategy-agent.plist` | 每週一 08:30 |
-| `com.autoresearch.newsletter-agent.plist` | 每週一 09:00 |
-
-每個 plist 執行指令格式：
 ```bash
-cd /Users/hua/autoresearch_threads && \
-claude -p "讀 program.md，執行 [Agent 名稱]" >> logs/[agent]-$(date +%Y-%m-%d).log 2>&1
+# Content Agent：每天 08:00 和 20:00
+0 8,20 * * * cd /Users/hua/autoresearch_threads && claude -p "讀 program.md，執行 Content Agent" >> logs/content-$(date +\%Y-\%m-\%d).log 2>&1
+
+# Strategy Agent：每週一 08:30
+30 8 * * 1 cd /Users/hua/autoresearch_threads && claude -p "讀 program.md，執行 Strategy Agent" >> logs/strategy-$(date +\%Y-\%m-\%d).log 2>&1
+
+# Newsletter Agent：每週一 09:00
+0 9 * * 1 cd /Users/hua/autoresearch_threads && claude -p "讀 program.md，執行 Newsletter Agent" >> logs/newsletter-$(date +\%Y-\%m-\%d).log 2>&1
 ```
 
 ## 實作順序
@@ -154,5 +153,5 @@ claude -p "讀 program.md，執行 [Agent 名稱]" >> logs/[agent]-$(date +%Y-%m
 5. 建立 `orchestrator/newsletter_agent.py`
 6. 建立 `drafts/` 目錄
 7. 建立 `logs/` 目錄
-8. 建立三個 launchd plist 並載入
+8. 設定 crontab 三條排程
 9. 遷移現有 Content Agent 排程（Python → claude -p）
