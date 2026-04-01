@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime, timedelta, timezone
-from orchestrator.config import YOUTUBE_API_KEY
+from orchestrator.config import YOUTUBE_API_KEY, SUPADATA_API_KEY
 
 # Channel name -> YouTube channel ID mapping
 CHANNEL_IDS = {
@@ -57,10 +57,61 @@ def fetch_recent_videos(channel_id: str, hours: int = 12) -> list[dict]:
     ]
 
 
+def fetch_transcript(video_id: str, lang: str = "zh-TW") -> str:
+    """Fetch YouTube transcript via Supadata API. Falls back to any available language."""
+    if not SUPADATA_API_KEY:
+        return ""
+
+    headers = {"x-api-key": SUPADATA_API_KEY}
+    params = {"videoId": video_id, "text": "true", "lang": lang}
+
+    try:
+        resp = requests.get(
+            "https://api.supadata.ai/v1/youtube/transcript",
+            headers=headers,
+            params=params,
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            content = data.get("content", "")
+            actual_lang = data.get("lang", lang)
+            print(f"  [TRANSCRIPT] {video_id}: {len(content)} chars ({actual_lang})")
+            return content
+
+        # If requested lang not available, retry without lang to get default
+        if resp.status_code in (404, 206) and lang != "en":
+            params.pop("lang")
+            resp2 = requests.get(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+            if resp2.status_code == 200:
+                data = resp2.json()
+                content = data.get("content", "")
+                actual_lang = data.get("lang", "?")
+                print(f"  [TRANSCRIPT] {video_id}: {len(content)} chars ({actual_lang}, fallback)")
+                return content
+
+        print(f"  [TRANSCRIPT] {video_id}: unavailable ({resp.status_code})")
+    except Exception as e:
+        print(f"  [TRANSCRIPT] {video_id}: error ({e})")
+
+    return ""
+
+
 def fetch_all_channels(hours: int = 12) -> list[dict]:
     all_videos = []
     for name, channel_id in CHANNEL_IDS.items():
         if channel_id:
             videos = fetch_recent_videos(channel_id, hours)
             all_videos.extend(videos)
+
+    # Fetch transcripts for all videos
+    for video in all_videos:
+        transcript = fetch_transcript(video["video_id"])
+        video["transcript"] = transcript
+
     return all_videos

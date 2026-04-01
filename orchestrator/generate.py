@@ -38,10 +38,19 @@ def generate(analysis: dict, sources: dict) -> list[dict]:
         _append_learnings(learnings, round_number)
         resource = _read_prompt("resource.md")
 
-    yt_summary = "\n".join(
-        f"- [{v['channel']}] {v['title']} ({v['url']})"
-        for v in sources.get("youtube", [])
-    ) or "（本輪無新影片）"
+    yt_parts = []
+    for v in sources.get("youtube", []):
+        entry = f"#### [{v['channel']}] {v['title']}\nURL: {v['url']}"
+        transcript = v.get("transcript", "")
+        if transcript:
+            # Truncate very long transcripts to keep prompt manageable
+            if len(transcript) > 3000:
+                transcript = transcript[:3000] + "...（截斷）"
+            entry += f"\n逐字稿：\n{transcript}"
+        else:
+            entry += "\n（無逐字稿）"
+        yt_parts.append(entry)
+    yt_summary = "\n\n".join(yt_parts) or "（本輪無新影片）"
 
     gh_summary = "\n".join(
         f"- {c['message']} ({c['hash']})"
@@ -76,7 +85,7 @@ def generate(analysis: dict, sources: dict) -> list[dict]:
 
 ## 本輪素材
 
-### YouTube 新影片
+### YouTube 新影片（含逐字稿，務必深度解析影片內容再產出貼文）
 {yt_summary}
 
 ### GitHub 最近活動

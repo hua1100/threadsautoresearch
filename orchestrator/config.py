@@ -10,6 +10,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
+SUPADATA_API_KEY = os.environ.get("SUPADATA_API_KEY", "")
 
 # Phase config
 PHASE_SWITCH_FOLLOWER_THRESHOLD = int(os.getenv("PHASE_SWITCH_FOLLOWER_THRESHOLD", "100"))
