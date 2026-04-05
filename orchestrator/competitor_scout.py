@@ -95,7 +95,7 @@ def scrape_accounts(
                 # threads-profile-api-scraper: returns [{..., "latestPosts": [...]}]
                 raw = run_actor(
                     COMPETITOR_THREADS_ACTOR,
-                    {"profiles": [account]},
+                    {"usernames": [account]},
                 )
                 posts = []
                 for profile in raw:

@@ -34,7 +34,7 @@ def run_actor(
     except requests.RequestException as e:
         raise ApifyError(f"request error: {e}")
 
-    if resp.status_code != 200:
+    if not (200 <= resp.status_code < 300):
         raise ApifyError(f"{resp.status_code} from Apify: {resp.text[:200]}")
 
     try:
