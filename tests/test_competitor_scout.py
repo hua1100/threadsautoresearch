@@ -44,3 +44,52 @@ def test_discover_x_accounts_returns_empty_on_apify_error():
     with patch("orchestrator.competitor_scout.run_actor", side_effect=ApifyError("timeout")):
         accounts = discover_x_accounts(top_n=5, max_followers=500_000)
     assert accounts == []
+
+
+from orchestrator.competitor_scout import scrape_accounts
+
+
+FAKE_THREADS_POSTS = [
+    {"text": "AI 工具推薦第一篇", "timestamp": "2026-04-01T10:00:00Z"},
+    {"text": "學 AI 的五個步驟", "timestamp": "2026-04-02T10:00:00Z"},
+]
+
+FAKE_X_POSTS = [
+    {"full_text": "Top 5 AI tools this week", "created_at": "2026-04-01T08:00:00Z"},
+    {"full_text": "How I use AI daily", "created_at": "2026-04-02T08:00:00Z"},
+]
+
+
+def test_scrape_accounts_threads_returns_posts():
+    with patch("orchestrator.competitor_scout.run_actor", return_value=FAKE_THREADS_POSTS):
+        result = scrape_accounts(["prompt_case"], platform="threads")
+    assert "prompt_case" in result
+    assert len(result["prompt_case"]) == 2
+    assert result["prompt_case"][0]["text"] == "AI 工具推薦第一篇"
+
+
+def test_scrape_accounts_x_returns_posts():
+    with patch("orchestrator.competitor_scout.run_actor", return_value=FAKE_X_POSTS):
+        result = scrape_accounts(["aitools_daily"], platform="x")
+    assert "aitools_daily" in result
+    assert result["aitools_daily"][0]["text"] == "Top 5 AI tools this week"
+
+
+def test_scrape_accounts_skips_failed_account():
+    from orchestrator.apify_client import ApifyError
+    with patch("orchestrator.competitor_scout.run_actor", side_effect=ApifyError("timeout")):
+        result = scrape_accounts(["bad_account"], platform="threads")
+    assert result == {}
+
+
+def test_scrape_accounts_multiple_accounts():
+    call_count = 0
+    def fake_run_actor(actor_id, actor_input, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return FAKE_THREADS_POSTS
+
+    with patch("orchestrator.competitor_scout.run_actor", side_effect=fake_run_actor):
+        result = scrape_accounts(["acc1", "acc2"], platform="threads")
+    assert len(result) == 2
+    assert call_count == 2

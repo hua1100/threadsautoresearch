@@ -53,3 +53,44 @@ def discover_x_accounts(
     result = ranked[:top_n]
     print(f"[SCOUT] Discovered X accounts: {result}")
     return result
+
+
+def scrape_accounts(
+    accounts: list[str],
+    platform: str,  # "threads" or "x"
+    posts_per_account: int = COMPETITOR_POSTS_PER_ACCOUNT,
+) -> dict[str, list[dict]]:
+    """Scrape posts from a list of accounts. Returns {username: [posts]}."""
+    if platform == "threads":
+        actor_id = "apify/threads-scraper"
+    else:
+        actor_id = "apify/twitter-scraper"
+
+    results: dict[str, list[dict]] = {}
+    for account in accounts:
+        print(f"[SCOUT] Scraping {platform}/@{account}...")
+        try:
+            if platform == "threads":
+                raw = run_actor(
+                    actor_id,
+                    {"usernames": [account], "resultsLimit": posts_per_account},
+                )
+            else:
+                raw = run_actor(
+                    actor_id,
+                    {"handles": [account], "maxItems": posts_per_account},
+                )
+        except ApifyError as e:
+            print(f"[SCOUT] Skipping @{account}: {e}")
+            continue
+
+        # Normalise text field (Threads uses "text", X uses "full_text")
+        posts = []
+        for item in raw:
+            text = item.get("text") or item.get("full_text") or ""
+            if text:
+                posts.append({"text": text, "raw": item})
+        results[account] = posts
+        print(f"[SCOUT]   {len(posts)} posts collected")
+
+    return results
