@@ -46,9 +46,8 @@ def discover_x_accounts(
         if follower_count > max_followers:
             continue
         score = (item.get("like_count") or 0) + (item.get("retweet_count") or 0)
-        if username not in engagement or score > engagement[username]:
-            engagement[username] = engagement.get(username, 0) + score
-            followers[username] = follower_count
+        engagement[username] = engagement.get(username, 0) + score
+        followers[username] = follower_count
 
     ranked = sorted(engagement.keys(), key=lambda u: engagement[u], reverse=True)
     result = ranked[:top_n]
