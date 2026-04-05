@@ -93,3 +93,42 @@ def test_scrape_accounts_multiple_accounts():
         result = scrape_accounts(["acc1", "acc2"], platform="threads")
     assert len(result) == 2
     assert call_count == 2
+
+
+from unittest.mock import MagicMock
+from orchestrator.competitor_scout import analyze_competitors
+
+
+FAKE_SCRAPED = {
+    "prompt_case": [{"text": "AI 工具推薦\n✅ 第一點\n✅ 第二點", "raw": {}}] * 10,
+    "aitools_daily": [{"text": "Top 3 AI tools 🔥\n1. Tool A\n2. Tool B", "raw": {}}] * 10,
+}
+
+
+def test_analyze_competitors_returns_report_string():
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="## 競品格式分析\n規則一：使用條列式結構")]
+
+    with patch("orchestrator.competitor_scout.anthropic.Anthropic") as MockClaude:
+        MockClaude.return_value.messages.create.return_value = mock_response
+        report = analyze_competitors(FAKE_SCRAPED)
+
+    assert isinstance(report, str)
+    assert len(report) > 0
+
+
+def test_analyze_competitors_includes_account_names_in_prompt():
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="analysis result")]
+    captured_prompt = {}
+
+    def fake_create(**kwargs):
+        captured_prompt["content"] = kwargs["messages"][0]["content"]
+        return mock_response
+
+    with patch("orchestrator.competitor_scout.anthropic.Anthropic") as MockClaude:
+        MockClaude.return_value.messages.create.side_effect = fake_create
+        analyze_competitors(FAKE_SCRAPED)
+
+    assert "prompt_case" in captured_prompt["content"]
+    assert "aitools_daily" in captured_prompt["content"]
