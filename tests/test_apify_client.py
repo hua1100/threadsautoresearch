@@ -44,3 +44,13 @@ def test_run_actor_returns_empty_list_on_empty_response():
         items = run_actor("apify/fake-actor", {}, api_token="tok123")
 
     assert items == []
+
+
+def test_run_actor_raises_on_invalid_json():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = ValueError("No JSON object could be decoded")
+
+    with patch("orchestrator.apify_client.requests.post", return_value=mock_resp):
+        with pytest.raises(ApifyError, match="invalid JSON"):
+            run_actor("apify/fake-actor", {}, api_token="tok123")

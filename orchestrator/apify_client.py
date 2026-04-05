@@ -35,4 +35,7 @@ def run_actor(
     if resp.status_code != 200:
         raise ApifyError(f"{resp.status_code} from Apify: {resp.text[:200]}")
 
-    return resp.json() or []
+    try:
+        return resp.json() or []
+    except (ValueError, requests.exceptions.JSONDecodeError):
+        raise ApifyError(f"invalid JSON in response from {actor_id}")

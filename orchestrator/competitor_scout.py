@@ -205,6 +205,11 @@ def run() -> None:
     total_posts = sum(len(v) for v in all_scraped.values())
     print(f"[SCOUT] Total posts collected: {total_posts} from {len(all_scraped)} accounts")
 
+    if total_posts == 0:
+        print("[SCOUT] All accounts returned zero usable posts. Exiting.")
+        send_notification("⚠️ Competitor Scout：帳號已爬取但無有效貼文內容")
+        return
+
     # 4. Analyze
     print("[SCOUT] Analyzing with Claude...")
     report_text = analyze_competitors(all_scraped)
