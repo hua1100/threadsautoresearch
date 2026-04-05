@@ -41,3 +41,22 @@ LOGS_DIR = BASE_DIR / "logs"
 NEWSLETTER_EMAIL = os.environ.get("NEWSLETTER_EMAIL", "")
 SUBSTACK_SID = os.environ.get("SUBSTACK_SID", "")
 SUBSTACK_SUBDOMAIN = os.environ.get("SUBSTACK_SUBDOMAIN", "hualeee")
+
+# Apify
+APIFY_API_TOKEN = os.environ.get("APIFY_API_TOKEN", "")
+
+COMPETITOR_THREADS_ACCOUNTS = [
+    "prompt_case",
+    "iamraven.tw",
+    "aiposthub",
+]
+
+COMPETITOR_X_SEARCH_KEYWORDS = [
+    "AI tools",
+    "AI tutorial",
+    "AI workflow",
+]
+
+COMPETITOR_POSTS_PER_ACCOUNT = 50
+COMPETITOR_X_TOP_N = 5
+COMPETITOR_X_MAX_FOLLOWERS = 500_000
