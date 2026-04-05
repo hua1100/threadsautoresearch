@@ -132,3 +132,44 @@ def test_analyze_competitors_includes_account_names_in_prompt():
 
     assert "prompt_case" in captured_prompt["content"]
     assert "aitools_daily" in captured_prompt["content"]
+
+
+from orchestrator.competitor_scout import save_report, patch_strategy
+
+
+def test_save_report_writes_markdown(tmp_path):
+    report_path = tmp_path / "competitor_report.md"
+    raw_path = tmp_path / "competitor_raw.json"
+
+    save_report(
+        report_text="## 分析結果\n規則一：條列式",
+        scraped=FAKE_SCRAPED,
+        report_path=report_path,
+        raw_path=raw_path,
+    )
+
+    assert report_path.exists()
+    assert "分析結果" in report_path.read_text()
+    assert raw_path.exists()
+
+
+def test_patch_strategy_appends_section(tmp_path):
+    strategy_path = tmp_path / "strategy.md"
+    strategy_path.write_text("# 本週流量策略\n## 目標\n衝觸及\n")
+
+    patch_strategy("規則一：條列式\n規則二：短句", strategy_path=strategy_path)
+
+    content = strategy_path.read_text()
+    assert "競品格式觀察" in content
+    assert "規則一：條列式" in content
+
+
+def test_patch_strategy_does_not_duplicate(tmp_path):
+    strategy_path = tmp_path / "strategy.md"
+    strategy_path.write_text("# 本週流量策略\n## 競品格式觀察（2026-04-05）\n舊資料\n")
+
+    patch_strategy("新規則", strategy_path=strategy_path)
+
+    content = strategy_path.read_text()
+    # Should append new section, not replace old
+    assert "新規則" in content

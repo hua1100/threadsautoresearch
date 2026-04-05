@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import anthropic
 from orchestrator.config import (
@@ -138,3 +139,103 @@ def analyze_competitors(scraped: dict[str, list[dict]]) -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     return response.content[0].text
+
+
+def save_report(
+    report_text: str,
+    scraped: dict[str, list[dict]],
+    report_path: Path | None = None,
+    raw_path: Path | None = None,
+) -> None:
+    """Write competitor_report.md and competitor_raw.json."""
+    if report_path is None:
+        report_path = DATA_DIR / "competitor_report.md"
+    if raw_path is None:
+        raw_path = DATA_DIR / "competitor_raw.json"
+
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    md = f"# 競品格式分析報告\n\n生成時間：{date_str}\n\n{report_text}\n"
+    report_path.write_text(md, encoding="utf-8")
+    print(f"[SCOUT] Report saved to {report_path}")
+
+    raw_serializable = {
+        account: [p["text"] for p in posts]
+        for account, posts in scraped.items()
+    }
+    raw_path.write_text(
+        json.dumps(raw_serializable, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"[SCOUT] Raw data saved to {raw_path}")
+
+
+def patch_strategy(report_text: str, strategy_path: Path | None = None) -> None:
+    """Append competitor format observations to strategy.md."""
+    if strategy_path is None:
+        strategy_path = PROMPTS_DIR / "strategy.md"
+
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    section = f"\n\n## 競品格式觀察（{date_str}）\n\n{report_text}\n"
+
+    current = strategy_path.read_text(encoding="utf-8") if strategy_path.exists() else ""
+    strategy_path.write_text(current + section, encoding="utf-8")
+    print(f"[SCOUT] strategy.md updated with competitor observations")
+
+
+def run() -> None:
+    """Main entry point. Run competitor scout end-to-end."""
+    print("[SCOUT] === Competitor Scout Start ===")
+
+    # 1. X account discovery
+    x_accounts = discover_x_accounts()
+
+    # 2. Scrape Threads seed accounts
+    threads_scraped = scrape_accounts(COMPETITOR_THREADS_ACCOUNTS, platform="threads")
+
+    # 3. Scrape discovered X accounts
+    x_scraped = scrape_accounts(x_accounts, platform="x") if x_accounts else {}
+
+    all_scraped = {**threads_scraped, **x_scraped}
+
+    if not all_scraped:
+        print("[SCOUT] No posts collected. Exiting.")
+        send_notification("⚠️ Competitor Scout：無法抓取任何帳號資料")
+        return
+
+    total_posts = sum(len(v) for v in all_scraped.values())
+    print(f"[SCOUT] Total posts collected: {total_posts} from {len(all_scraped)} accounts")
+
+    # 4. Analyze
+    print("[SCOUT] Analyzing with Claude...")
+    report_text = analyze_competitors(all_scraped)
+
+    # 5. Save outputs
+    save_report(report_text, all_scraped)
+
+    # 6. Show report preview
+    print("\n" + "=" * 60)
+    print(report_text[:1000])
+    print("=" * 60)
+
+    # 7. CLI confirmation gate
+    answer = input("\n是否將競品格式觀察更新到 prompts/strategy.md？[y/N] ").strip().lower()
+    if answer == "y":
+        patch_strategy(report_text)
+        print("[SCOUT] strategy.md updated.")
+    else:
+        print("[SCOUT] strategy.md unchanged.")
+
+    # 8. Telegram notification
+    account_list = ", ".join(f"@{a}" for a in all_scraped.keys())
+    send_notification(
+        f"📊 *競品分析完成*\n"
+        f"帳號：{account_list}\n"
+        f"貼文總數：{total_posts}\n"
+        f"報告：data/competitor_report.md"
+    )
+
+    print("[SCOUT] === Done ===")
+
+
+if __name__ == "__main__":
+    run()
