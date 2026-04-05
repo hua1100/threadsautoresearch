@@ -52,6 +52,7 @@ def discover_x_accounts(
         user = item.get("author") or item.get("user") or {}
         username = (
             item.get("author_username")
+            or item.get("screen_name")
             or item.get("username")
             or (user.get("username") if isinstance(user, dict) else None)
             or (user.get("screen_name") if isinstance(user, dict) else None)
@@ -69,8 +70,8 @@ def discover_x_accounts(
             continue
         metrics = item.get("public_metrics") or {}
         score = (
-            (item.get("like_count") or metrics.get("like_count") or item.get("favorite_count") or 0)
-            + (item.get("retweet_count") or metrics.get("retweet_count") or 0)
+            (item.get("like_count") or metrics.get("like_count") or item.get("favorites") or item.get("favorite_count") or 0)
+            + (item.get("retweet_count") or metrics.get("retweet_count") or item.get("retweets") or 0)
         )
         engagement[username] = engagement.get(username, 0) + score
         followers[username] = follower_count
