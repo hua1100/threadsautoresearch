@@ -50,8 +50,13 @@ from orchestrator.competitor_scout import scrape_accounts
 
 
 FAKE_THREADS_POSTS = [
-    {"text": "AI 工具推薦第一篇", "timestamp": "2026-04-01T10:00:00Z"},
-    {"text": "學 AI 的五個步驟", "timestamp": "2026-04-02T10:00:00Z"},
+    {
+        "username": "prompt_case",
+        "latestPosts": [
+            {"caption": {"text": "AI 工具推薦第一篇"}, "taken_at": 1234},
+            {"caption": {"text": "學 AI 的五個步驟"}, "taken_at": 1235},
+        ],
+    }
 ]
 
 FAKE_X_POSTS = [

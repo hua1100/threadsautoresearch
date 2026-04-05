@@ -11,6 +11,9 @@ from orchestrator.config import (
     COMPETITOR_POSTS_PER_ACCOUNT,
     COMPETITOR_X_TOP_N,
     COMPETITOR_X_MAX_FOLLOWERS,
+    COMPETITOR_THREADS_ACTOR,
+    COMPETITOR_X_SEARCH_ACTOR,
+    COMPETITOR_X_PROFILE_ACTOR,
     DATA_DIR,
     PROMPTS_DIR,
 )
@@ -24,30 +27,51 @@ def discover_x_accounts(
 ) -> list[str]:
     """Search X for high-engagement AI posts, return top non-celebrity account handles."""
     print("[SCOUT] Discovering top X AI accounts...")
-    try:
-        items = run_actor(
-            "apify/twitter-scraper",
-            {
-                "searchTerms": COMPETITOR_X_SEARCH_KEYWORDS,
-                "maxItems": 200,
-                "sort": "Latest",
-            },
-        )
-    except ApifyError as e:
-        print(f"[SCOUT] X discovery failed: {e}")
+
+    # Run one search per keyword and aggregate results
+    all_items: list[dict] = []
+    for keyword in COMPETITOR_X_SEARCH_KEYWORDS:
+        try:
+            items = run_actor(
+                COMPETITOR_X_SEARCH_ACTOR,
+                {"query": keyword, "section": "latest", "maxPages": 2},
+            )
+            all_items.extend(items)
+        except ApifyError as e:
+            print(f"[SCOUT] Search failed for '{keyword}': {e}")
+
+    if not all_items:
+        print("[SCOUT] X discovery: no results from any keyword")
         return []
 
     # Aggregate engagement per unique author
+    # Field names vary by actor version — handle multiple conventions
     engagement: dict[str, int] = {}
     followers: dict[str, int] = {}
-    for item in items:
-        username = item.get("author_username") or item.get("username") or ""
+    for item in all_items:
+        user = item.get("author") or item.get("user") or {}
+        username = (
+            item.get("author_username")
+            or item.get("username")
+            or (user.get("username") if isinstance(user, dict) else None)
+            or (user.get("screen_name") if isinstance(user, dict) else None)
+            or ""
+        )
         if not username:
             continue
-        follower_count = item.get("author_followers") or item.get("followers_count") or 0
+        follower_count = (
+            item.get("author_followers")
+            or item.get("followers_count")
+            or (user.get("followers_count") if isinstance(user, dict) else 0)
+            or 0
+        )
         if follower_count > max_followers:
             continue
-        score = (item.get("like_count") or 0) + (item.get("retweet_count") or 0)
+        metrics = item.get("public_metrics") or {}
+        score = (
+            (item.get("like_count") or metrics.get("like_count") or item.get("favorite_count") or 0)
+            + (item.get("retweet_count") or metrics.get("retweet_count") or 0)
+        )
         engagement[username] = engagement.get(username, 0) + score
         followers[username] = follower_count
 
@@ -63,35 +87,39 @@ def scrape_accounts(
     posts_per_account: int = COMPETITOR_POSTS_PER_ACCOUNT,
 ) -> dict[str, list[dict]]:
     """Scrape posts from a list of accounts. Returns {username: [posts]}."""
-    if platform == "threads":
-        actor_id = "apify/threads-scraper"
-    else:
-        actor_id = "apify/twitter-scraper"
-
     results: dict[str, list[dict]] = {}
     for account in accounts:
         print(f"[SCOUT] Scraping {platform}/@{account}...")
         try:
             if platform == "threads":
+                # threads-profile-api-scraper: returns [{..., "latestPosts": [...]}]
                 raw = run_actor(
-                    actor_id,
-                    {"usernames": [account], "resultsLimit": posts_per_account},
+                    COMPETITOR_THREADS_ACTOR,
+                    {"profiles": [account]},
                 )
+                posts = []
+                for profile in raw:
+                    for post in profile.get("latestPosts", []):
+                        text = (post.get("caption") or {}).get("text") or ""
+                        if text:
+                            posts.append({"text": text, "raw": post})
+                        if len(posts) >= posts_per_account:
+                            break
             else:
+                # twitter-scraper profiles mode: returns flat list of tweets
                 raw = run_actor(
-                    actor_id,
-                    {"handles": [account], "maxItems": posts_per_account},
+                    COMPETITOR_X_PROFILE_ACTOR,
+                    {"mode": "profiles", "usernames": [account], "maxResults": posts_per_account},
                 )
+                posts = []
+                for item in raw:
+                    text = item.get("full_text") or item.get("text") or ""
+                    if text:
+                        posts.append({"text": text, "raw": item})
         except ApifyError as e:
             print(f"[SCOUT] Skipping @{account}: {e}")
             continue
 
-        # Normalise text field (Threads uses "text", X uses "full_text")
-        posts = []
-        for item in raw:
-            text = item.get("text") or item.get("full_text") or ""
-            if text:
-                posts.append({"text": text, "raw": item})
         results[account] = posts
         print(f"[SCOUT]   {len(posts)} posts collected")
 

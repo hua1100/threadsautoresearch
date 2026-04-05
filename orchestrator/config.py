@@ -60,3 +60,8 @@ COMPETITOR_X_SEARCH_KEYWORDS = [
 COMPETITOR_POSTS_PER_ACCOUNT = 50
 COMPETITOR_X_TOP_N = 5
 COMPETITOR_X_MAX_FOLLOWERS = 500_000
+
+# Apify actor IDs (verified)
+COMPETITOR_THREADS_ACTOR = "kJdK90pa2hhYYrCK5"   # threads-profile-api-scraper
+COMPETITOR_X_SEARCH_ACTOR = "otNcBrfxlRjT9FGqf"  # twitter-search (no login required)
+COMPETITOR_X_PROFILE_ACTOR = "tIpjRQruPOB39HLf5"  # twitter-scraper (profiles mode)

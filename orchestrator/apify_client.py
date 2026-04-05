@@ -19,8 +19,10 @@ def run_actor(
     POST /v2/acts/{actorId}/run-sync-get-dataset-items?token=...&timeout=...
     """
     token = api_token or APIFY_API_TOKEN
+    # Apify URL format: owner/name → owner~name in path
+    actor_slug = actor_id.replace("/", "~")
     url = (
-        f"https://api.apify.com/v2/acts/{actor_id}"
+        f"https://api.apify.com/v2/acts/{actor_slug}"
         f"/run-sync-get-dataset-items"
         f"?token={token}&timeout={timeout}"
     )
